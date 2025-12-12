@@ -1,9 +1,9 @@
 services:
-  imagepro-web:
+  wignn-web:
     build:
       context: ./web
       dockerfile: Dockerfile
-    container_name: imagepro-studio
+    container_name: wignn-studio
     restart: unless-stopped
     ports:
       - "3080:80"
@@ -16,33 +16,10 @@ services:
       retries: 3
       start_period: 10s
     labels:
-      - "app.name=imagepro-studio"
+      - "app.name=wignn-studio"
       - "app.version=1.0.0"
-    # deploy:
-    #   resources:
-    #     limits:
-    #       cpus: '0.5'
-    #       memory: 256M
-    #     reservations:
-    #       cpus: '0.25'
-    #       memory: 128M
-
-
-  traefik:
-    image: traefik:v2.10
-    container_name: traefik
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./certs:/certs:ro
-    labels:
-      - "traefik.enable=true"
 
 networks:
   default:
-    name: imagepro-network
+    name: wignn-network
     driver: bridge
