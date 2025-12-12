@@ -6,7 +6,7 @@ services:
     container_name: imagepro-studio
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "3080:80"
     environment:
       - NODE_ENV=production
     healthcheck:
