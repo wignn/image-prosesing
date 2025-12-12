@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { FilterParams } from '../components/FilterControls'
+import { aiUpscale, isAIUpscaleAvailable, type UpscaleScale } from '../utils/aiUpscaler'
 
 // Type definitions for the WASM module
 interface WasmModule {
@@ -55,6 +56,7 @@ export function useImageProcessor(originalImage: ImageData | null) {
     const processorRef = useRef<WasmProcessor | null>(null)
     const originalDataRef = useRef<Uint8ClampedArray | null>(null)
     const progressIntervalRef = useRef<number | null>(null)
+    const processingLockRef = useRef<boolean>(false)
 
     // Load WASM module
     useEffect(() => {
@@ -137,24 +139,33 @@ export function useImageProcessor(originalImage: ImageData | null) {
             return
         }
 
+        // Prevent concurrent processing - wait if already processing
+        if (processingLockRef.current) {
+            console.warn('Processing already in progress, please wait...')
+            return
+        }
+
+        processingLockRef.current = true
         setIsProcessing(true)
         setError(null)
 
         try {
-            // Get current image data (from processed or original)
-            const currentData = processedImage?.data || originalImage.data
-            const width = processedImage?.width || originalImage.width
-            const height = processedImage?.height || originalImage.height
+            // For upscale, ALWAYS use original image (not processed)
+            // For other filters, use processed image if available
+            const isUpscale = params.type === 'upscale'
+            const sourceData = isUpscale ? originalImage.data : (processedImage?.data || originalImage.data)
+            const sourceWidth = isUpscale ? originalImage.width : (processedImage?.width || originalImage.width)
+            const sourceHeight = isUpscale ? originalImage.height : (processedImage?.height || originalImage.height)
 
             // Calculate target size for progress estimation
-            let targetWidth = width
-            let targetHeight = height
+            let targetWidth = sourceWidth
+            let targetHeight = sourceHeight
             if (params.type === 'upscale') {
-                targetWidth = params.width ?? width * (params.scale ?? 2)
-                targetHeight = params.height ?? height * (params.scale ?? 2)
+                targetWidth = params.width ?? sourceWidth * (params.scale ?? 2)
+                targetHeight = params.height ?? sourceHeight * (params.scale ?? 2)
             } else if (params.type === 'resize') {
-                targetWidth = params.width ?? width
-                targetHeight = params.height ?? height
+                targetWidth = params.width ?? sourceWidth
+                targetHeight = params.height ?? sourceHeight
             }
             const estimatedPixels = targetWidth * targetHeight
 
@@ -164,16 +175,55 @@ export function useImageProcessor(originalImage: ImageData | null) {
             // Give UI time to update before heavy computation
             await new Promise(resolve => setTimeout(resolve, 50))
 
-            // Create processor if needed
-            const data = new Uint8Array(currentData.buffer.slice(0))
+            // For AI upscale, handle separately without creating WASM processor
+            if (params.type === 'upscale') {
+                const requestedScale = params.scale ?? 2
+                const canUseAI = params.useAI &&
+                    isAIUpscaleAvailable() &&
+                    (requestedScale === 2 || requestedScale === 4)
+
+                if (canUseAI) {
+                    // Use AI upscaling (ESRGAN) - NO WASM processor needed
+                    stopProgress()
+                    setProcessingOperation(`AI Upscaling ${requestedScale}× (ESRGAN)`)
+
+                    const originalImageData = new ImageData(
+                        new Uint8ClampedArray(originalImage.data),
+                        originalImage.width,
+                        originalImage.height
+                    )
+
+                    const aiResult = await aiUpscale(originalImageData, {
+                        scale: requestedScale as UpscaleScale,
+                        onProgress: (progress) => {
+                            setProcessingProgress(progress)
+                        },
+                    })
+
+                    setProcessingProgress(100)
+                    await new Promise(resolve => setTimeout(resolve, 200))
+                    setProcessedImage(aiResult.imageData)
+
+                    // Cleanup and return
+                    stopProgress()
+                    setProcessingProgress(-1)
+                    setProcessingOperation('')
+                    setIsProcessing(false)
+                    processingLockRef.current = false
+                    return
+                }
+            }
+
+            // Create WASM processor for non-AI operations
+            const data = new Uint8Array(sourceData.buffer.slice(0))
             const wasm = wasmRef.current
 
-            let newWidth = width
-            let newHeight = height
+            let newWidth = sourceWidth
+            let newHeight = sourceHeight
             let resultData: Uint8Array
 
             // Use the class-based processor for most operations
-            const processor = new wasm.WasmImageProcessor(data, width, height)
+            const processor = new wasm.WasmImageProcessor(data, sourceWidth, sourceHeight)
 
             try {
                 switch (params.type) {
@@ -202,14 +252,16 @@ export function useImageProcessor(originalImage: ImageData | null) {
                         processor.sepia()
                         break
                     case 'resize':
-                        newWidth = params.width ?? width
-                        newHeight = params.height ?? height
+                        newWidth = params.width ?? sourceWidth
+                        newHeight = params.height ?? sourceHeight
                         processor.resize(newWidth, newHeight)
                         break
                     case 'upscale':
-                        // Upscale uses resize with Lanczos interpolation
-                        newWidth = params.width ?? width * (params.scale ?? 2)
-                        newHeight = params.height ?? height * (params.scale ?? 2)
+                        // Standard upscale with Lanczos interpolation
+                        // (AI path is handled before processor creation)
+                        const requestedScale = params.scale ?? 2
+                        newWidth = params.width ?? sourceWidth * requestedScale
+                        newHeight = params.height ?? sourceHeight * requestedScale
                         processor.resize(newWidth, newHeight)
                         break
                 }
@@ -246,6 +298,7 @@ export function useImageProcessor(originalImage: ImageData | null) {
             setProcessingProgress(-1)
             setProcessingOperation('')
             setIsProcessing(false)
+            processingLockRef.current = false
         }
     }, [originalImage, processedImage, startProgress, stopProgress])
 

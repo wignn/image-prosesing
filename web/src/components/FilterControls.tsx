@@ -18,6 +18,7 @@ export interface FilterParams {
     width?: number
     height?: number
     scale?: number
+    useAI?: boolean  // Use AI-powered upscaling (ESRGAN)
 }
 
 interface FilterControlsProps {
@@ -119,6 +120,7 @@ export function FilterControls({ onApplyFilter, onReset, disabled, isProcessing,
     const [resizeWidth, setResizeWidth] = useState(256)
     const [resizeHeight, setResizeHeight] = useState(256)
     const [upscaleFactor, setUpscaleFactor] = useState(2)
+    const [useAIUpscale, setUseAIUpscale] = useState(true)  // AI upscaling enabled by default
     const [activeFilter, setActiveFilter] = useState<string | null>(null)
 
     // Wrapper to track which filter is being applied
@@ -325,19 +327,41 @@ export function FilterControls({ onApplyFilter, onReset, disabled, isProcessing,
             {/* Upscale */}
             <div className="filter-section">
                 <h3>AI Upscaling</h3>
-                <p className="section-desc">Enlarge images with high-quality interpolation</p>
+                <p className="section-desc">
+                    {useAIUpscale
+                        ? 'ESRGAN AI enhancement (2× or 4×)'
+                        : 'Lanczos interpolation (any scale)'}
+                </p>
+
+                {/* AI Toggle */}
+                <div className="ai-toggle">
+                    <label className="toggle-label">
+                        <input
+                            type="checkbox"
+                            checked={useAIUpscale}
+                            onChange={(e) => setUseAIUpscale(e.target.checked)}
+                            disabled={isButtonDisabled}
+                        />
+                        <span className="toggle-switch"></span>
+                        <span className="toggle-text">
+                            {useAIUpscale ? '🤖 AI Enhancement ON' : '📐 Standard Resize'}
+                        </span>
+                    </label>
+                </div>
+
                 <div className="upscale-presets">
                     <button
                         className={`filter-btn upscale-btn ${upscaleFactor === 2 ? 'active' : ''} ${activeFilter === 'upscale-2' ? 'processing' : ''}`}
                         onClick={() => {
                             const w = currentWidth || 256
                             const h = currentHeight || 256
-                            setUpscaleFactor(2) // Sync slider
-                            handleApplyFilter({ type: 'upscale', scale: 2, width: w * 2, height: h * 2 }, 'upscale-2')
+                            setUpscaleFactor(2)
+                            handleApplyFilter({ type: 'upscale', scale: 2, width: w * 2, height: h * 2, useAI: useAIUpscale }, 'upscale-2')
                         }}
                         disabled={isButtonDisabled}
                     >
                         {activeFilter === 'upscale-2' ? <ButtonSpinner /> : '2×'}
+                        {useAIUpscale && <span className="ai-badge">AI</span>}
                         {currentWidth && currentHeight && (
                             <span className="preview-size">
                                 {currentWidth * 2} × {currentHeight * 2}
@@ -349,12 +373,13 @@ export function FilterControls({ onApplyFilter, onReset, disabled, isProcessing,
                         onClick={() => {
                             const w = currentWidth || 256
                             const h = currentHeight || 256
-                            setUpscaleFactor(4) // Sync slider
-                            handleApplyFilter({ type: 'upscale', scale: 4, width: w * 4, height: h * 4 }, 'upscale-4')
+                            setUpscaleFactor(4)
+                            handleApplyFilter({ type: 'upscale', scale: 4, width: w * 4, height: h * 4, useAI: useAIUpscale }, 'upscale-4')
                         }}
                         disabled={isButtonDisabled}
                     >
                         {activeFilter === 'upscale-4' ? <ButtonSpinner /> : '4×'}
+                        {useAIUpscale && <span className="ai-badge">AI</span>}
                         {currentWidth && currentHeight && (
                             <span className="preview-size">
                                 {currentWidth * 4} × {currentHeight * 4}
@@ -366,10 +391,12 @@ export function FilterControls({ onApplyFilter, onReset, disabled, isProcessing,
                         onClick={() => {
                             const w = currentWidth || 256
                             const h = currentHeight || 256
-                            setUpscaleFactor(8) // Sync slider
-                            handleApplyFilter({ type: 'upscale', scale: 8, width: w * 8, height: h * 8 }, 'upscale-8')
+                            setUpscaleFactor(8)
+                            // 8x not supported by AI, use standard
+                            handleApplyFilter({ type: 'upscale', scale: 8, width: w * 8, height: h * 8, useAI: false }, 'upscale-8')
                         }}
                         disabled={isButtonDisabled}
+                        title={useAIUpscale ? 'AI not available for 8×, will use standard upscale' : ''}
                     >
                         {activeFilter === 'upscale-8' ? <ButtonSpinner /> : '8×'}
                         {currentWidth && currentHeight && (
