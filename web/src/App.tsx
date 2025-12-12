@@ -87,9 +87,8 @@ function App() {
                                 <path d="M4 15L8 11L12 15L16 10L20 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                         </span>
-                        ImagePro Studio
+                        wignn Studio
                     </h1>
-                    <p className="subtitle">Enterprise-grade image processing • Powered by Rust + WebAssembly</p>
                 </div>
                 <div className="header-actions">
                     {originalImage && (
@@ -171,7 +170,7 @@ function App() {
             </main>
 
             <footer className="footer">
-                <p>© 2024 ImagePro Studio • Built with Rust, WebAssembly, React & ❤️</p>
+                <p>© 2024 wignn Studio • Built with Rust, WebAssembly and React</p>
             </footer>
         </div>
     )
