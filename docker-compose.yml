@@ -1,0 +1,48 @@
+services:
+  imagepro-web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: imagepro-studio
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "app.name=imagepro-studio"
+      - "app.version=1.0.0"
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '0.5'
+    #       memory: 256M
+    #     reservations:
+    #       cpus: '0.25'
+    #       memory: 128M
+
+
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./certs:/certs:ro
+    labels:
+      - "traefik.enable=true"
+
+networks:
+  default:
+    name: imagepro-network
+    driver: bridge

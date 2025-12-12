@@ -1,0 +1,39 @@
+# Build output
+/build/
+/dist/
+
+# Waifu2x binaries (download separately)
+/tools/waifu2x/*.exe
+/tools/waifu2x/*.dll
+/tools/waifu2x/models-*/
+
+# Rust
+/rust-core/target/
+
+# Python
+/python/venv/
+/python/*.egg-info/
+/python/image_ml/lib/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Node.js
+/web/node_modules/
+/web/dist/
+/web/wasm/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

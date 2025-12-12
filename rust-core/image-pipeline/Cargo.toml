@@ -1,0 +1,22 @@
+[package]
+name = "image-pipeline"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+name = "image_pipeline"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+image = { workspace = true }
+rayon = { workspace = true }
+thiserror = { workspace = true }
+
+[features]
+default = []
+simd = []
+
+[dev-dependencies]
+criterion = "0.5"
