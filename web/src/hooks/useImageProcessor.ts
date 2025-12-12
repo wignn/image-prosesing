@@ -27,15 +27,34 @@ interface WasmProcessor {
     free(): void
 }
 
+// Operation names for display
+const operationNames: Record<string, string> = {
+    'grayscale': 'Converting to grayscale',
+    'brightness': 'Adjusting brightness',
+    'contrast': 'Adjusting contrast',
+    'blur': 'Applying blur',
+    'sharpen': 'Sharpening image',
+    'edge_detect': 'Detecting edges',
+    'invert': 'Inverting colors',
+    'sepia': 'Applying sepia filter',
+    'resize': 'Resizing image',
+    'upscale': 'Upscaling image'
+}
+
 export function useImageProcessor(originalImage: ImageData | null) {
     const [processedImage, setProcessedImage] = useState<ImageData | null>(null)
     const [isProcessing, setIsProcessing] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [isWasmLoaded, setIsWasmLoaded] = useState(false)
 
+    // Progress tracking
+    const [processingProgress, setProcessingProgress] = useState<number>(-1)
+    const [processingOperation, setProcessingOperation] = useState<string>('')
+
     const wasmRef = useRef<WasmModule | null>(null)
     const processorRef = useRef<WasmProcessor | null>(null)
     const originalDataRef = useRef<Uint8ClampedArray | null>(null)
+    const progressIntervalRef = useRef<number | null>(null)
 
     // Load WASM module
     useEffect(() => {
@@ -80,6 +99,38 @@ export function useImageProcessor(originalImage: ImageData | null) {
         }
     }, [originalImage])
 
+    // Helper to stop progress animation
+    const stopProgress = useCallback(() => {
+        if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current)
+            progressIntervalRef.current = null
+        }
+    }, [])
+
+    // Helper to start simulated progress
+    const startProgress = useCallback((operationType: string, estimatedPixels: number) => {
+        stopProgress()
+        setProcessingOperation(operationNames[operationType] || 'Processing...')
+        setProcessingProgress(0)
+
+        // Estimate duration: ~1ms per 1000 pixels for upscale, faster for simple ops
+        const isHeavy = operationType === 'upscale' || operationType === 'resize' || operationType === 'blur'
+        const baseDuration = isHeavy ? Math.min(estimatedPixels / 5000, 15000) : 500
+        const duration = Math.max(500, baseDuration)
+        const interval = 50 // Update every 50ms
+        const steps = duration / interval
+        const increment = 95 / steps // Go up to 95%, then jump to 100 when done
+
+        let currentProgress = 0
+        progressIntervalRef.current = window.setInterval(() => {
+            currentProgress += increment
+            if (currentProgress >= 95) {
+                currentProgress = 95
+            }
+            setProcessingProgress(currentProgress)
+        }, interval)
+    }, [stopProgress])
+
     const applyFilter = useCallback(async (params: FilterParams) => {
         if (!originalImage || !wasmRef.current) {
             setError('No image loaded or WASM not ready')
@@ -94,6 +145,24 @@ export function useImageProcessor(originalImage: ImageData | null) {
             const currentData = processedImage?.data || originalImage.data
             const width = processedImage?.width || originalImage.width
             const height = processedImage?.height || originalImage.height
+
+            // Calculate target size for progress estimation
+            let targetWidth = width
+            let targetHeight = height
+            if (params.type === 'upscale') {
+                targetWidth = params.width ?? width * (params.scale ?? 2)
+                targetHeight = params.height ?? height * (params.scale ?? 2)
+            } else if (params.type === 'resize') {
+                targetWidth = params.width ?? width
+                targetHeight = params.height ?? height
+            }
+            const estimatedPixels = targetWidth * targetHeight
+
+            // Start progress animation
+            startProgress(params.type, estimatedPixels)
+
+            // Give UI time to update before heavy computation
+            await new Promise(resolve => setTimeout(resolve, 50))
 
             // Create processor if needed
             const data = new Uint8Array(currentData.buffer.slice(0))
@@ -161,14 +230,24 @@ export function useImageProcessor(originalImage: ImageData | null) {
                 newHeight
             )
 
+            // Complete the progress
+            stopProgress()
+            setProcessingProgress(100)
+
+            // Brief pause to show 100%
+            await new Promise(resolve => setTimeout(resolve, 200))
+
             setProcessedImage(newImageData)
         } catch (err) {
             console.error('Filter error:', err)
             setError(`Failed to apply filter: ${err instanceof Error ? err.message : String(err)}`)
         } finally {
+            stopProgress()
+            setProcessingProgress(-1)
+            setProcessingOperation('')
             setIsProcessing(false)
         }
-    }, [originalImage, processedImage])
+    }, [originalImage, processedImage, startProgress, stopProgress])
 
     const resetImage = useCallback(() => {
         setProcessedImage(null)
@@ -182,6 +261,8 @@ export function useImageProcessor(originalImage: ImageData | null) {
         applyFilter,
         resetImage,
         isWasmLoaded,
+        processingProgress,
+        processingOperation,
     }
 }
 

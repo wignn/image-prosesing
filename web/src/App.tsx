@@ -31,7 +31,9 @@ function App() {
         error,
         applyFilter,
         resetImage,
-        isWasmLoaded
+        isWasmLoaded,
+        processingProgress,
+        processingOperation
     } = useImageProcessor(originalImage)
 
     const handleImageLoad = useCallback((imageData: ImageData) => {
@@ -158,7 +160,12 @@ function App() {
                         </div>
                     )}
 
-                    {isProcessing && <ProcessingIndicator />}
+                    {isProcessing && (
+                        <ProcessingIndicator
+                            progress={processingProgress}
+                            operation={processingOperation}
+                        />
+                    )}
 
                     {error && (
                         <div className="error-message">
