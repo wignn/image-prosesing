@@ -11,26 +11,12 @@ from .pipeline import ImagePreprocessor, PreprocessConfig
 
 
 class ImageClassifier:
-    """
-    Example image classifier using Rust preprocessing + PyTorch inference
-    
-    This demonstrates the integration pattern for ML workflows.
-    """
-    
     def __init__(
         self,
         model_name: str = "resnet18",
         device: str = "cpu",
         pretrained: bool = True,
     ):
-        """
-        Initialize classifier with a pretrained model
-        
-        Args:
-            model_name: Model architecture name
-            device: "cpu" or "cuda"
-            pretrained: Use pretrained weights
-        """
         self.device = device
         self.model = None
         self.preprocessor = None
@@ -38,7 +24,6 @@ class ImageClassifier:
         self._pretrained = pretrained
     
     def load_model(self):
-        """Load the PyTorch model (lazy loading)"""
         try:
             import torch
             import torchvision.models as models
@@ -48,7 +33,6 @@ class ImageClassifier:
                 "Install with: pip install torch torchvision"
             )
         
-        # Get model
         if hasattr(models, self._model_name):
             model_fn = getattr(models, self._model_name)
             if self._pretrained:
@@ -62,7 +46,6 @@ class ImageClassifier:
         self.model = self.model.to(self.device)
         self.model.eval()
         
-        # Setup preprocessor with ImageNet settings
         self.preprocessor = ImagePreprocessor(PreprocessConfig(
             target_size=(224, 224),
             normalize=True,
@@ -73,23 +56,13 @@ class ImageClassifier:
         ))
     
     def predict(self, image: np.ndarray) -> Tuple[int, float]:
-        """
-        Classify an image
-        
-        Args:
-            image: Input image as numpy array
-        
-        Returns:
-            Tuple of (class_id, confidence)
-        """
         if self.model is None:
             self.load_model()
         
         import torch
         
-        # Preprocess with Rust
         tensor = self.preprocessor.to_pytorch_tensor(image)
-        tensor = tensor.unsqueeze(0).to(self.device)  # Add batch dimension
+        tensor = tensor.unsqueeze(0).to(self.device)  
         
         # Inference
         with torch.no_grad():
@@ -104,16 +77,6 @@ class ImageClassifier:
         images: List[np.ndarray],
         batch_size: int = 32,
     ) -> List[Tuple[int, float]]:
-        """
-        Classify a batch of images
-        
-        Args:
-            images: List of input images
-            batch_size: Batch size for inference
-        
-        Returns:
-            List of (class_id, confidence) tuples
-        """
         if self.model is None:
             self.load_model()
         
@@ -139,31 +102,14 @@ class ImageClassifier:
         
         return results
 
-
 class FeatureExtractor:
-    """
-    Extract features from images using pretrained models
-    
-    Useful for:
-    - Image similarity search
-    - Transfer learning
-    - Clustering
-    """
-    
     def __init__(
         self,
         model_name: str = "resnet18",
         device: str = "cpu",
         layer: str = "avgpool",
     ):
-        """
-        Initialize feature extractor
-        
-        Args:
-            model_name: Model architecture name
-            device: "cpu" or "cuda"
-            layer: Layer to extract features from
-        """
+
         self.device = device
         self.model = None
         self.preprocessor = None
@@ -172,45 +118,31 @@ class FeatureExtractor:
         self._features = None
     
     def load_model(self):
-        """Load the model and setup feature extraction hook"""
         try:
             import torch
             import torchvision.models as models
         except ImportError:
             raise ImportError("PyTorch and torchvision are required")
         
-        # Get model
         model_fn = getattr(models, self._model_name)
         self.model = model_fn(weights="IMAGENET1K_V1")
         self.model = self.model.to(self.device)
         self.model.eval()
         
-        # Register hook to capture features
         def hook(module, input, output):
             self._features = output
         
-        # Find and register hook on target layer
         for name, layer in self.model.named_modules():
             if name == self._layer:
                 layer.register_forward_hook(hook)
                 break
         
-        # Setup preprocessor
         self.preprocessor = ImagePreprocessor(PreprocessConfig(
             target_size=(224, 224),
             normalize=True,
         ))
     
     def extract(self, image: np.ndarray) -> np.ndarray:
-        """
-        Extract features from an image
-        
-        Args:
-            image: Input image
-        
-        Returns:
-            Feature vector as numpy array
-        """
         if self.model is None:
             self.load_model()
         
@@ -233,16 +165,6 @@ class FeatureExtractor:
         images: List[np.ndarray],
         batch_size: int = 32,
     ) -> np.ndarray:
-        """
-        Extract features from a batch of images
-        
-        Args:
-            images: List of input images
-            batch_size: Batch size
-        
-        Returns:
-            Feature matrix of shape (N, feature_dim)
-        """
         if self.model is None:
             self.load_model()
         

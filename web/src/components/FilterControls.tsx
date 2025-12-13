@@ -28,6 +28,7 @@ interface FilterControlsProps {
     isProcessing: boolean
     currentWidth?: number
     currentHeight?: number
+    isWasmLoaded: boolean
 }
 
 // Professional SVG Icons
@@ -113,7 +114,7 @@ const ButtonSpinner = () => (
     </svg>
 )
 
-export function FilterControls({ onApplyFilter, onReset, disabled, isProcessing, currentWidth, currentHeight }: FilterControlsProps) {
+export function FilterControls({ onApplyFilter, onReset, disabled, isProcessing, currentWidth, currentHeight, isWasmLoaded }: FilterControlsProps) {
     const [brightness, setBrightness] = useState(0)
     const [contrast, setContrast] = useState(1)
     const [blurSigma, setBlurSigma] = useState(2)
@@ -139,7 +140,11 @@ export function FilterControls({ onApplyFilter, onReset, disabled, isProcessing,
     return (
         <div className="filter-controls">
             <h2>Processing Tools</h2>
-
+                    <div className="wasm-status">
+                        <span className={`status-dot ${isWasmLoaded ? 'loaded' : 'loading'}`}></span>
+                        {isWasmLoaded ? 'Engine Ready' : 'Initializing...'}
+                    </div>
+                    <br></br>
             {/* Quick Filters */}
             <div className="filter-section">
                 <h3>Quick Filters</h3>

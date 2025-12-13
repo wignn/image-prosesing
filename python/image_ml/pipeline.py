@@ -1,12 +1,3 @@
-"""
-Image preprocessing pipeline for ML workflows
-
-Provides high-level utilities for:
-- Batch preprocessing with Rust acceleration
-- Integration with PyTorch tensors
-- Common ML preprocessing operations
-"""
-
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple, Union, Callable
 import numpy as np
@@ -16,25 +7,17 @@ from .bindings import ImageProcessor
 
 @dataclass
 class PreprocessConfig:
-    """Configuration for image preprocessing"""
-    
-    # Target size (width, height) - None to keep original
     target_size: Optional[Tuple[int, int]] = None
     
-    # Normalization
     normalize: bool = True
-    mean: Tuple[float, float, float] = (0.485, 0.456, 0.406)  # ImageNet mean
-    std: Tuple[float, float, float] = (0.229, 0.224, 0.225)   # ImageNet std
+    mean: Tuple[float, float, float] = (0.485, 0.456, 0.406)
+    std: Tuple[float, float, float] = (0.229, 0.224, 0.225)
     
-    # Filters to apply (in order)
     filters: List[str] = field(default_factory=list)
     
-    # Output format
     to_grayscale: bool = False
-    output_channels: int = 3  # 1 for grayscale, 3 for RGB, 4 for RGBA
-    
-    # Data type for output
-    output_dtype: str = "float32"  # "float32", "float16", "uint8"
+    output_channels: int = 3  
+    output_dtype: str = "float32" 
 
 
 class ImagePreprocessor:
@@ -77,30 +60,24 @@ class ImagePreprocessor:
         Returns:
             Processed image as numpy array (C, H, W) for ML frameworks
         """
-        # Load into Rust processor
         self._processor.load_from_numpy(image)
         
-        # Apply configured filters
         for filter_name in self.config.filters:
             self._apply_filter(filter_name)
         
-        # Resize if specified
         if self.config.target_size:
             self._processor.resize(*self.config.target_size)
         
-        # Convert to grayscale if requested
         if self.config.to_grayscale:
             self._processor.grayscale()
         
         # Get result
         result = self._processor.to_numpy()
         
-        # Convert channels
         if self.config.output_channels == 3:
-            result = result[:, :, :3]  # Drop alpha
+            result = result[:, :, :3]  
         elif self.config.output_channels == 1:
             if not self.config.to_grayscale:
-                # Convert to grayscale manually
                 result = np.mean(result[:, :, :3], axis=2, keepdims=True)
             else:
                 result = result[:, :, :1]
@@ -112,19 +89,16 @@ class ImagePreprocessor:
             std = np.array(self.config.std[:self.config.output_channels])
             result = (result - mean) / std
         
-        # Convert dtype
         if self.config.output_dtype == "float16":
             result = result.astype(np.float16)
         elif self.config.output_dtype == "uint8":
             if self.config.normalize:
-                # Denormalize first
                 result = (result * 255).astype(np.uint8)
             else:
                 result = result.astype(np.uint8)
         elif self.config.output_dtype == "float32":
             result = result.astype(np.float32)
         
-        # Convert to CHW format (channels first) for PyTorch
         if len(result.shape) == 3:
             result = np.transpose(result, (2, 0, 1))
         
@@ -246,17 +220,7 @@ class DatasetPreprocessor:
         output_dir: Optional[str] = None,
         extensions: Tuple[str, ...] = (".jpg", ".jpeg", ".png", ".bmp"),
     ) -> List[str]:
-        """
-        Preprocess all images in a directory
-        
-        Args:
-            input_dir: Input directory path
-            output_dir: Output directory (None to preprocess in memory)
-            extensions: File extensions to process
-        
-        Returns:
-            List of processed file paths or arrays
-        """
+
         from pathlib import Path
         
         input_path = Path(input_dir)

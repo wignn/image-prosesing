@@ -87,24 +87,6 @@ class Waifu2xEnhancer:
         tile_size: int = 0,  # 0 = auto
         tta_mode: bool = False,
     ) -> np.ndarray:
-        """
-        Enhance image using waifu2x.
-        
-        Args:
-            image: Input image as numpy array (H, W, C) RGB/RGBA
-            scale: Upscale ratio (1/2/4/8/16/32)
-            noise: Denoise level (-1=none, 0/1/2/3=light to strong)
-            gpu_id: GPU device (-1=cpu, 0+=gpu)
-            tile_size: Tile size (0=auto, >=32 for manual)
-            tta_mode: Enable TTA mode (slower but better quality)
-            
-        Returns:
-            Enhanced image as numpy array
-            
-        Raises:
-            RuntimeError: If waifu2x is not available
-            ValueError: If image format is invalid
-        """
         if not self.is_available:
             raise RuntimeError(
                 "waifu2x-ncnn-vulkan not found. "

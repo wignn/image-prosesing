@@ -1,7 +1,5 @@
 use rayon::prelude::*;
 
-/// SIMD-friendly grayscale conversion processing 4 pixels at once
-/// Uses approximation: gray = (r + g + g + b) >> 2 for speed
 #[inline]
 pub fn grayscale_fast(pixels: &mut [u8]) {
     pixels.par_chunks_mut(16).for_each(|chunk| {
@@ -10,18 +8,15 @@ pub fn grayscale_fast(pixels: &mut [u8]) {
                 let r = chunk[i] as u16;
                 let g = chunk[i + 1] as u16;
                 let b = chunk[i + 2] as u16;
-                // Fast approximation
                 let gray = ((r + g + g + b) >> 2) as u8;
                 chunk[i] = gray;
                 chunk[i + 1] = gray;
                 chunk[i + 2] = gray;
-                // Alpha unchanged
             }
         }
     });
 }
 
-/// SIMD-friendly brightness adjustment
 #[inline]
 pub fn brightness_simd(pixels: &mut [u8], adjustment: i16) {
     pixels.par_chunks_mut(16).for_each(|chunk| {
@@ -30,13 +25,11 @@ pub fn brightness_simd(pixels: &mut [u8], adjustment: i16) {
                 chunk[i] = ((chunk[i] as i16 + adjustment).clamp(0, 255)) as u8;
                 chunk[i + 1] = ((chunk[i + 1] as i16 + adjustment).clamp(0, 255)) as u8;
                 chunk[i + 2] = ((chunk[i + 2] as i16 + adjustment).clamp(0, 255)) as u8;
-                // Alpha unchanged
             }
         }
     });
 }
 
-/// SIMD-friendly invert operation
 #[inline]
 pub fn invert_simd(pixels: &mut [u8]) {
     pixels.par_chunks_mut(16).for_each(|chunk| {
@@ -51,7 +44,6 @@ pub fn invert_simd(pixels: &mut [u8]) {
     });
 }
 
-/// Process pixels in parallel chunks for better cache utilization
 pub fn process_pixels_parallel<F>(pixels: &mut [u8], chunk_size: usize, f: F)
 where
     F: Fn(&mut [u8]) + Sync + Send,
@@ -63,9 +55,6 @@ where
 
 #[cfg(target_arch = "x86_64")]
 pub mod x86 {
-    //! x86_64 specific SIMD operations using SSE/AVX
-    //!
-    //! These are enabled when compiled for x86_64 targets.
 
     /// Check if AVX2 is available at runtime
     pub fn has_avx2() -> bool {
@@ -94,9 +83,6 @@ pub mod x86 {
 
 #[cfg(target_arch = "wasm32")]
 pub mod wasm {
-    //! WebAssembly SIMD operations
-    //!
-    //! Uses wasm32 SIMD128 when available for browser-based processing.
 
     /// Check if WASM SIMD is available
     pub fn has_simd() -> bool {
